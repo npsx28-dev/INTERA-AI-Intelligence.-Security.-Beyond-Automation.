@@ -1,0 +1,120 @@
+
+"use client";
+
+import { useState, useEffect } from "react";
+
+export default function Home() {
+  const [isListening, setIsListening] = useState(false);
+  const [transcript, setTranscript] = useState("");
+  const [reply, setReply] = useState("");
+
+  // ระบบสังเคราะห์เสียง (INTERA Talk)
+  const speak = (text: string) => {
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel(); // ตัดเสียงเก่าก่อนพูดใหม่
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "th-TH"; // ตั้งค่าเสียงภาษาไทย
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  // ระบบฟังเสียง (INTERA Listen)
+  const startListening = () => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        alert("เบราว์เซอร์นี้ไม่รองรับ Speech Recognition แนะนำให้ใช้ Google Chrome ค่ะ");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = "th-TH"; // ให้ฟังภาษาไทย
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setReply("");
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error("Error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.onresult = (event: any) => {
+        const text = event.results[0][0].transcript;
+        setTranscript(text);
+        
+        // 🛡️ ส่วนคัดกรองความปลอดภัยเบื้องต้น (Security Validation Layer)
+        processCommand(text);
+      };
+
+      recognition.start();
+    }
+  };
+
+  // 🧠 ระบบประมวลผลคำสั่งแบบ Local (ไม่ต้องผ่าน Cloud)
+  const processCommand = (text: string) => {
+    const lowerText = text.toLowerCase();
+
+    if (lowerText.includes("สวัสดี") || lowerText.includes("intera")) {
+      const msg = "สวัสดีค่ะ ฉันคือระบบความปลอดภัยเสียง อินเทอร่า ออนไลน์แล้วค่ะ";
+      setReply(msg);
+      speak(msg);
+    } else if (lowerText.includes("ปิดระบบ") || lowerText.includes("ลบข้อมูล")) {
+      const msg = "⚠️ คำเตือน: คำสั่งนี้มีความเสี่ยงสูง จำเป็นต้องได้รับการอนุมัติเพิ่มเติมค่ะ";
+      setReply(msg);
+      speak(msg);
+    } else {
+      const msg = `รับทราบคำสั่ง ${text} ค่ะ แต่ระบบยังไม่ได้เชื่อมต่อ AI ตัวควบคุม`;
+      setReply(msg);
+      speak(msg);
+    }
+  };
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gray-950 text-white p-6">
+      <div className="z-10 w-full max-w-md bg-gray-900 border border-gray-800 p-8 rounded-2xl shadow-2xl text-center">
+        <h1 className="text-3xl font-extrabold tracking-tight text-blue-500 mb-2">INTERA V1</h1>
+        <p className="text-sm text-gray-400 mb-8">Secure Voice AI Infrastructure (Localhost)</p>
+
+        {/* สถานะไมโครโฟน */}
+        <div className="flex justify-center mb-8">
+          <button
+            onClick={startListening}
+            className={`w-24 h-24 rounded-full flex items-center justify-center transition-all ${
+              isListening 
+                ? "bg-red-500 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.5)]" 
+                : "bg-blue-600 hover:bg-blue-500 shadow-[0_0_15px_rgba(37,99,235,0.4)]"
+            }`}
+          >
+            <span className="text-sm font-bold">{isListening ? "กำลังฟัง..." : "กดแล้วพูด"}</span>
+          </button>
+        </div>
+
+        {/* แสดงผลคำพูดของเรา */}
+        {transcript && (
+          <div className="mb-4 p-4 bg-gray-800 rounded-lg text-left border border-gray-700">
+            <span className="text-xs text-blue-400 font-bold block mb-1">คุณพูดว่า:</span>
+            <p className="text-gray-200">{transcript}</p>
+          </div>
+        )}
+
+        {/* แสดงผลการตอบกลับจาก INTERA */}
+        {reply && (
+          <div className="p-4 bg-blue-950/40 rounded-lg text-left border border-blue-900/50">
+            <span className="text-xs text-green-400 font-bold block mb-1">INTERA ตอบกลับ:</span>
+            <p className="text-blue-200">{reply}</p>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
